@@ -3,27 +3,24 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button, TextBox
 
-# Global variables for dynamic settings
-GRID_SIZE = 20
+GRID_SIZE = 15
 NUM_ANTS_PER_COLONY = 5
 NUM_RESOURCES = 15
 STEPS = 100
 PHEROMONE_DECAY = 0.05
 PHEROMONE_STRENGTH = 3
 RESOURCE_TYPES = {1: "Leaves", 2: "Wood"}
-RESPAWN_DELAY = 10  # Steps before resources respawn
+RESPAWN_TIME = 10
 
 SCORES = {"Colony A": 0, "Colony B": 0}
 current_step = 0
 
-
-# Environment class
 class Environment:
     def __init__(self, grid_size, num_resources):
         self.grid_size = grid_size
-        self.grid = np.zeros((grid_size, grid_size))  # 0: empty, 1/2: resource types
-        self.pheromones_a = np.zeros((grid_size, grid_size))  # Colony A pheromones
-        self.pheromones_b = np.zeros((grid_size, grid_size))  # Colony B pheromones
+        self.grid = np.zeros((grid_size, grid_size))
+        self.pheromones_a = np.zeros((grid_size, grid_size))  # Pheromones for Colony A
+        self.pheromones_b = np.zeros((grid_size, grid_size))  # Pheromones for Colony B
         self.nests = {"Colony A": (2, 2), "Colony B": (grid_size - 3, grid_size - 3)}
         self.resource_respawn_tracker = {}
         self.spawn_resources(num_resources)
@@ -44,8 +41,6 @@ class Environment:
             self.grid[x, y] = random.choice(list(RESOURCE_TYPES.keys()))
             del self.resource_respawn_tracker[(x, y)]
 
-
-# Ant class
 class Ant:
     def __init__(self, colony, env):
         self.x, self.y = env.nests[colony]
@@ -58,7 +53,7 @@ class Ant:
         self.x = (self.x + dx) % self.env.grid_size
         self.y = (self.y + dy) % self.env.grid_size
 
-    def act(self, step):
+    def gather_food(self, step):
         pheromones = self.env.pheromones_a if self.colony == "Colony A" else self.env.pheromones_b
         if self.has_food:
             if (self.x, self.y) == self.env.nests[self.colony]:
@@ -70,7 +65,7 @@ class Ant:
         else:
             if self.env.grid[self.x, self.y] in RESOURCE_TYPES:
                 self.has_food = True
-                self.env.resource_respawn_tracker[(self.x, self.y)] = step + RESPAWN_DELAY
+                self.env.resource_respawn_tracker[(self.x, self.y)] = step + RESPAWN_TIME
                 self.env.grid[self.x, self.y] = 0
             else:
                 self.follow_pheromones(pheromones)
@@ -86,8 +81,6 @@ class Ant:
                 target = (nx, ny)
         self.x, self.y = target
 
-
-# Initialize environment and ants
 def init_simulation(grid_size, num_ants, num_resources):
     global env, ants_a, ants_b, SCORES, current_step
     env = Environment(grid_size, num_resources)
@@ -97,15 +90,13 @@ def init_simulation(grid_size, num_ants, num_resources):
     current_step = 0
 
 
-# Visualization Function
 def run_simulation(steps):
     global current_step
     plt.ion()
-    fig, ax = plt.subplots(figsize=(9, 9))  # Increased figure size
+    fig, ax = plt.subplots(figsize=(9, 9))
     for step in range(current_step, current_step + steps):
-        # Ant actions
         for ant in ants_a + ants_b:
-            ant.act(step)
+            ant.gather_food(step)
 
         env.decay_pheromones()
         env.respawn_resources(step)
@@ -118,22 +109,18 @@ def run_simulation(steps):
                 elif env.grid[x, y] == 2:
                     ax.scatter(y, x, color="brown", s=200, marker="o", label="Wood")  # Larger resource markers
 
-        # Display pheromone trails
         ax.imshow(env.pheromones_a, cmap="Reds", alpha=0.5, interpolation="nearest")
         ax.imshow(env.pheromones_b, cmap="Blues", alpha=0.5, interpolation="nearest")
 
-        # Display ants
         for ant in ants_a:
             ax.scatter(ant.y, ant.x, color="red", s=150, label="Colony A Ants")
         for ant in ants_b:
             ax.scatter(ant.y, ant.x, color="blue", s=150, label="Colony B Ants")
 
-        # Display nests and scores
         for name, (x, y) in env.nests.items():
             ax.text(y, x, name, color="black", fontsize=12, ha="center", va="center")
             ax.text(y, x + 0.5, f"Score: {SCORES[name]}", color="black", fontsize=10, ha="center")
 
-        # Title and layout adjustments
         ax.set_title(f"Step {step + 1} | Colony A: {SCORES['Colony A']} | Colony B: {SCORES['Colony B']}", fontsize=16)
         ax.set_xlim(-1, env.grid_size)
         ax.set_ylim(-1, env.grid_size)
@@ -147,7 +134,6 @@ def run_simulation(steps):
     plt.show()
 
 
-# Interactive controls
 def on_restart(event):
     grid_size = int(grid_size_box.text)
     num_ants = int(num_ants_box.text)
@@ -157,7 +143,6 @@ def on_restart(event):
     run_simulation(steps)
 
 
-# Initialize controls
 fig, ax = plt.subplots(figsize=(6, 2))
 plt.subplots_adjust(bottom=0.5)
 
